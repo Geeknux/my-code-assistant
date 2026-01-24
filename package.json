@@ -1,0 +1,81 @@
+{
+  "name": "my-code-assistant",
+  "displayName": "My Code Assistant",
+  "description": "A code assistant with command-based file system queries",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:myCodeAssistant"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "myCodeAssistantContainer",
+          "title": "My Code Assistant",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "myCodeAssistantContainer": [
+        {
+          "type": "webview",
+          "id": "myCodeAssistant",
+          "name": "Assistant",
+          "when": "true"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "myCodeAssistant.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "configuration": {
+      "title": "My Code Assistant",
+      "properties": {
+        "myCodeAssistant.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama server URL"
+        },
+        "myCodeAssistant.selectedModel": {
+          "type": "string",
+          "default": "",
+          "description": "Selected Ollama model"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.103.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0"
+  },
+  "dependencies": {
+    "marked": "^17.0.1"
+  }
+}

@@ -1,0 +1,4 @@
+*.zip
+*.bzip
+out/
+node_modules/
