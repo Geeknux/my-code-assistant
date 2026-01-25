@@ -314,6 +314,9 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                         case 'cancelRequest':
                             this.cancelCurrentRequest();
                             break;
+                        case 'autocomplete':
+                            await this.handleAutocomplete(message.command, message.partialPath);
+                            break;
                     }
                 } catch (error) {
                     console.error('Error handling message:', error);
@@ -334,6 +337,139 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         if (this._view) {
             this._view.webview.html = getWebviewContent(this._view.webview, this.markedUri);
             this.getOllamaModels();
+        }
+    }
+
+    private async handleAutocomplete(command: string, partialPath: string) {
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                this._view?.webview.postMessage({
+                    type: 'autocompleteResults',
+                    command: command,
+                    items: []
+                });
+                return;
+            }
+
+            const workspaceRoot = workspaceFolder.uri.fsPath;
+            const isFileCommand = command === '@file';
+            const isDirectoryCommand = command === '@directory';
+
+            // Determine the directory to search in
+            let searchDir = workspaceRoot;
+            let searchPattern = partialPath.trim();
+
+            if (searchPattern.includes('/') || searchPattern.includes('\\')) {
+                // Has path separator - search in subdirectory
+                const lastSeparator = Math.max(
+                    searchPattern.lastIndexOf('/'),
+                    searchPattern.lastIndexOf('\\')
+                );
+                const dirPart = searchPattern.substring(0, lastSeparator);
+                searchPattern = searchPattern.substring(lastSeparator + 1);
+                
+                const testPath = path.join(workspaceRoot, dirPart);
+                if (fs.existsSync(testPath) && fs.statSync(testPath).isDirectory()) {
+                    searchDir = testPath;
+                }
+            }
+
+            // Get items from directory
+            const items = this.getAutocompleteItems(
+                searchDir,
+                workspaceRoot,
+                searchPattern,
+                isFileCommand,
+                isDirectoryCommand
+            );
+
+            this._view?.webview.postMessage({
+                type: 'autocompleteResults',
+                command: command,
+                items: items
+            });
+
+        } catch (error) {
+            console.error('Autocomplete error:', error);
+            this._view?.webview.postMessage({
+                type: 'autocompleteResults',
+                command: command,
+                items: []
+            });
+        }
+    }
+
+    private getAutocompleteItems(
+        searchDir: string,
+        workspaceRoot: string,
+        pattern: string,
+        filesOnly: boolean,
+        directoriesOnly: boolean
+    ): Array<{ path: string; icon: string; type: string }> {
+        try {
+            if (!fs.existsSync(searchDir)) {
+                return [];
+            }
+
+            const items = fs.readdirSync(searchDir);
+            const results: Array<{ path: string; icon: string; type: string }> = [];
+
+            for (const item of items) {
+                // Skip hidden files and common excludes
+                if (item.startsWith('.') && !['.vscode', '.env', '.gitignore'].includes(item)) {
+                    continue;
+                }
+                if (['node_modules', 'dist', 'build', 'out', '.git'].includes(item)) {
+                    continue;
+                }
+
+                const fullPath = path.join(searchDir, item);
+                
+                try {
+                    const stats = fs.statSync(fullPath);
+                    const isDirectory = stats.isDirectory();
+                    const isFile = stats.isFile();
+
+                    // Filter based on command type
+                    if (filesOnly && !isFile) continue;
+                    if (directoriesOnly && !isDirectory) continue;
+
+                    // Filter based on pattern
+                    if (pattern && !item.toLowerCase().includes(pattern.toLowerCase())) {
+                        continue;
+                    }
+
+                    // Get relative path from workspace root
+                    const relativePath = path.relative(workspaceRoot, fullPath);
+
+                    results.push({
+                        path: relativePath,
+                        icon: isDirectory ? '📁' : this.getFileIcon(item),
+                        type: isDirectory ? 'directory' : 'file'
+                    });
+
+                    // Limit results to prevent overwhelming the UI
+                    if (results.length >= 50) break;
+
+                } catch (error) {
+                    // Skip items we can't access
+                    continue;
+                }
+            }
+
+            // Sort: directories first, then alphabetically
+            results.sort((a, b) => {
+                if (a.type === 'directory' && b.type !== 'directory') return -1;
+                if (a.type !== 'directory' && b.type === 'directory') return 1;
+                return a.path.localeCompare(b.path);
+            });
+
+            return results;
+
+        } catch (error) {
+            console.error('Error getting autocomplete items:', error);
+            return [];
         }
     }
 

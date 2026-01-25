@@ -399,6 +399,71 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
             background-color: var(--vscode-toolbar-hoverBackground);
         }
 
+        /* Autocomplete Dropdown Styles */
+        .autocomplete-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: var(--vscode-dropdown-background);
+            border: 1px solid var(--vscode-dropdown-border);
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            margin-bottom: 4px;
+        }
+
+        .autocomplete-dropdown.visible {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .autocomplete-item .icon {
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .autocomplete-item .path {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-track {
+            background: var(--vscode-scrollbarSlider-background);
+        }
+
+        .autocomplete-dropdown::-webkit-scrollbar-thumb {
+            background: var(--vscode-scrollbarSlider-hoverBackground);
+            border-radius: 4px;
+        }
+
         @media (max-width: 300px) {
             .button-container {
                 flex-direction: column;
@@ -417,113 +482,72 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
         <h2>🤖 My Code Assistant</h2>
     </div>
 
-    <div class="tabs">
-        <button class="tab active" data-tab="commands">📋 Commands</button>
-        <button class="tab" data-tab="chat">💬 AI Chat</button>
+    <!-- Model Selection Bar -->
+    <div class="model-selection">
+        <div class="model-status">
+            <div class="status-indicator" id="connectionStatus"></div>
+            <span id="connectionText">Checking Ollama connection...</span>
+            <button class="refresh-models-btn" id="refreshModels">🔄 Refresh</button>
+        </div>
+        <select class="model-dropdown" id="modelSelect">
+            <option value="">No AI model (commands only)</option>
+        </select>
+        <div class="model-info" id="modelInfo"></div>
+        <div class="error-message" id="modelError" style="display: none;"></div>
     </div>
 
-    <!-- Commands Tab -->
-    <div class="tab-content active" id="commands-tab">
-        <div class="output-area" id="output">
-            <div class="welcome-content">
-                <strong>Welcome to My Code Assistant!</strong>
-                
-                <strong>Available Commands:</strong>
-                • <span class="command-example">@project</span> - Show project path and directory tree (3 levels deep)
-                • <span class="command-example">@directory &lt;path&gt;</span> - Show directory tree for specific path
-                • <span class="command-example">@file &lt;path&gt;</span> - Show file content and metadata
-                
-                <strong>Examples:</strong>
-                <span class="command-example">@project</span>
-                <span class="command-example">@directory src</span>
-                <span class="command-example">@file package.json</span>
-                
-                <strong>Tips:</strong>
-                • Run multiple commands at once (one per line)
-                • Use relative paths from workspace root
-                • Press Ctrl+Enter to quickly submit
-                
-                Ready to assist! Enter a command below to get started.
-            </div>
-        </div>
-        
-        <div class="input-container">
-            <div class="help-text">
-                <strong>Quick Start:</strong> Type <span class="command-example">@project</span> to explore your workspace
-            </div>
+    <!-- Unified Chat Output -->
+    <div class="output-area" id="chatOutput">
+        <div class="welcome-content">
+            <strong>🤖 Welcome to My Code Assistant!</strong>
             
-            <div class="input-wrapper">
-                <textarea 
-                    class="input-area" 
-                    id="commandInput" 
-                    placeholder="Enter commands here... (e.g., @project or @file package.json)"
-                ></textarea>
-            </div>
+            <strong>📋 Available Commands:</strong>
+            • <span class="command-example">@project</span> - Show project structure and directory tree
+            • <span class="command-example">@directory &lt;path&gt;</span> - Show directory tree for specific path
+            • <span class="command-example">@file &lt;path&gt;</span> - Show file content and metadata
             
-            <div class="button-container">
-                <button class="submit-button" id="submitButton">
-                    <span id="buttonText">Execute Commands</span>
-                </button>
-                <button class="clear-button" id="clearButton">Clear</button>
-                <span class="shortcut-hint">Ctrl+Enter to submit</span>
-            </div>
+            <strong>💬 AI Chat:</strong>
+            • Select a model above to enable AI conversations
+            • Ask questions in natural language
+            • Commands are automatically used as context for AI
+            
+            <strong>✨ Examples:</strong>
+            <span class="command-example">@project</span>
+            <span class="command-example">@file package.json</span>
+            "What does this project do?"
+            "Explain the extension.ts file"
+            
+            <strong>💡 Tips:</strong>
+            • Use commands to gather context, then ask AI questions
+            • Mix commands and questions in the same conversation
+            • Press Ctrl+Enter to send
+            
+            Ready to assist! Type a command or question below.
         </div>
     </div>
-
-    <!-- Chat Tab -->
-    <div class="tab-content" id="chat-tab">
-        <div class="model-selection">
-            <div class="model-status">
-                <div class="status-indicator" id="connectionStatus"></div>
-                <span id="connectionText">Checking Ollama connection...</span>
-                <button class="refresh-models-btn" id="refreshModels">🔄 Refresh</button>
-            </div>
-            <select class="model-dropdown" id="modelSelect">
-                <option value="">Loading models...</option>
-            </select>
-            <div class="model-info" id="modelInfo"></div>
-            <div class="error-message" id="modelError" style="display: none;"></div>
-        </div>
-
-        <div class="output-area" id="chatOutput">
-            <div class="welcome-content">
-                <strong>🤖 AI Chat Assistant</strong>
-                
-                Select an Ollama model above to start chatting. You can:
-                • Ask questions about your code
-                • Get explanations for files and directories  
-                • Request code analysis and suggestions
-                • Use command output as context
-                
-                <strong>Tips:</strong>
-                • Run commands in Commands tab first to gather context
-                • Enable "Use command context" to include recent command output
-            </div>
+    
+    <!-- Unified Input Area -->
+    <div class="input-container">
+        <div class="help-text">
+            <strong>💡 Tip:</strong> Type <span class="command-example">@project</span> for commands or ask questions in natural language
         </div>
         
-        <div class="input-container">
-            <div class="context-toggle">
-                <input type="checkbox" id="useContext" />
-                <label for="useContext">Use command context in AI conversation</label>
-            </div>
-            <div class="context-preview" id="contextPreview" style="display: none;"></div>
-            
-            <div class="input-wrapper">
-                <textarea 
-                    class="input-area" 
-                    id="chatInput" 
-                    placeholder="Ask me anything about your code..."
-                ></textarea>
-            </div>
-            
-            <div class="button-container">
-                <button class="chat-button" id="chatButton">
-                    <span id="chatButtonText">Send Message</span>
-                </button>
-                <button class="cancel-button" id="cancelButton">Cancel</button>
-                <button class="clear-button" id="clearChatButton">Clear Chat</button>
-                <span class="shortcut-hint">Ctrl+Enter to send</span>
-            </div>
+        <div class="input-wrapper">
+            <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+            <textarea 
+                class="input-area" 
+                id="chatInput" 
+                placeholder="Type @project, @file, @directory or ask a question..."
+            ></textarea>
+        </div>
+        
+        <div class="button-container">
+            <button class="chat-button" id="chatButton">
+                <span id="chatButtonText">Send</span>
+            </button>
+            <button class="cancel-button" id="cancelButton">Cancel</button>
+            <button class="clear-button" id="clearChatButton">Clear</button>
+            <span class="shortcut-hint">Ctrl+Enter to send</span>
         </div>
     </div>
     
@@ -533,18 +557,11 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
             const vscode = acquireVsCodeApi();  
             
             // Elements
-            const tabs = document.querySelectorAll('.tab');
-            const tabContents = document.querySelectorAll('.tab-content');
-            const output = document.getElementById('output');
             const chatOutput = document.getElementById('chatOutput');
-            const commandInput = document.getElementById('commandInput');
             const chatInput = document.getElementById('chatInput');
-            const submitButton = document.getElementById('submitButton');
             const chatButton = document.getElementById('chatButton');
-            const clearButton = document.getElementById('clearButton');
             const clearChatButton = document.getElementById('clearChatButton');
             const cancelButton = document.getElementById('cancelButton');
-            const buttonText = document.getElementById('buttonText');
             const chatButtonText = document.getElementById('chatButtonText');
             const modelSelect = document.getElementById('modelSelect');
             const modelInfo = document.getElementById('modelInfo');
@@ -552,122 +569,113 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
             const connectionStatus = document.getElementById('connectionStatus');
             const connectionText = document.getElementById('connectionText');
             const refreshModels = document.getElementById('refreshModels');
-            const useContext = document.getElementById('useContext');
-            const contextPreview = document.getElementById('contextPreview');
+            const autocompleteDropdown = document.getElementById('autocompleteDropdown');
 
-            let currentContext = '';
+            let commandContext = '';
             let chatHistory = [];
             let isProcessing = false;
-
-            // Tab switching
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const targetTab = tab.dataset.tab;
-                    
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tabContents.forEach(tc => tc.classList.remove('active'));
-                    
-                    tab.classList.add('active');
-                    document.getElementById(targetTab + '-tab').classList.add('active');
-                    
-                    saveState();
-                });
-            });
+            let autocompleteItems = [];
+            let selectedAutocompleteIndex = -1;
+            let autocompleteDebounceTimer = null;
 
             // State management
             const previousState = vscode.getState();
             if (previousState) {
-                if (previousState.commandInputValue) commandInput.value = previousState.commandInputValue;
                 if (previousState.chatInputValue) chatInput.value = previousState.chatInputValue;
-                if (previousState.outputValue) output.innerHTML = previousState.outputValue;
                 if (previousState.chatHistory) {
                     chatHistory = previousState.chatHistory;
                     renderChatHistory();
                 }
-                if (previousState.currentContext) {
-                    currentContext = previousState.currentContext;
-                    updateContextPreview();
-                }
-                if (previousState.activeTab) {
-                    const activeTabButton = document.querySelector('[data-tab="' + previousState.activeTab + '"]');
-                    if (activeTabButton) activeTabButton.click();
+                if (previousState.commandContext) {
+                    commandContext = previousState.commandContext;
                 }
             }
 
             function saveState() {
                 vscode.setState({
-                    commandInputValue: commandInput.value,
                     chatInputValue: chatInput.value,
-                    outputValue: output.innerHTML,
                     chatHistory: chatHistory,
-                    currentContext: currentContext,
-                    activeTab: document.querySelector('.tab.active').dataset.tab
+                    commandContext: commandContext
                 });
             }
 
-            function setButtonLoading(button, textElement, loading, loadingText = 'Processing...') {
+            function setButtonLoading(loading, loadingText = 'Processing...') {
                 isProcessing = loading;
-                button.disabled = loading;
+                chatButton.disabled = loading;
                 
                 if (loading) {
-                    textElement.innerHTML = '<div class="loading"><div class="spinner"></div>' + loadingText + '</div>';
-                    if (button === chatButton) {
-                        cancelButton.classList.add('active');
-                    }
+                    chatButtonText.innerHTML = '<div class="loading"><div class="spinner"></div>' + loadingText + '</div>';
+                    cancelButton.classList.add('active');
                 } else {
-                    textElement.textContent = button === submitButton ? 'Execute Commands' : 'Send Message';
-                    if (button === chatButton) {
-                        cancelButton.classList.remove('active');
-                    }
+                    chatButtonText.textContent = 'Send';
+                    cancelButton.classList.remove('active');
                 }
             }
 
-            function executeCommands() {
-                const command = commandInput.value.trim();
-                if (!command || isProcessing) return;
-
-                if (!command.includes('@')) {
-                    output.textContent = '❌ No valid commands found. Commands must start with @ character.\\n\\nExample: @project';
-                    return;
-                }
-
-                vscode.postMessage({
-                    type: 'command',
-                    value: command
-                });
-
-                setButtonLoading(submitButton, buttonText, true);
-                saveState();
-            }
-
-            function sendChatMessage() {
+            function sendMessage() {
                 const message = chatInput.value.trim();
                 if (!message || isProcessing) return;
 
-                const selectedModel = modelSelect.value;
-                if (!selectedModel) {
-                    alert('Please select a model first');
-                    return;
+                // Check if message contains commands
+                const hasCommands = message.includes('@project') || message.includes('@file') || message.includes('@directory');
+                
+                if (hasCommands) {
+                    // Execute commands
+                    chatHistory.push({
+                        id: Date.now(),
+                        type: 'user',
+                        content: message,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                    renderChatHistory();
+                    
+                    vscode.postMessage({
+                        type: 'command',
+                        value: message
+                    });
+                    
+                    setButtonLoading(true, 'Executing...');
+                } else {
+                    // Send to AI
+                    const selectedModel = modelSelect.value;
+                    if (!selectedModel) {
+                        // No model selected, just show message
+                        chatHistory.push({
+                            id: Date.now(),
+                            type: 'user',
+                            content: message,
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+                        chatHistory.push({
+                            id: Date.now() + 1,
+                            type: 'assistant',
+                            content: '⚠️ No AI model selected. Please select a model above to enable AI chat, or use commands like @project, @file, @directory.',
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+                        renderChatHistory();
+                        chatInput.value = '';
+                        saveState();
+                        return;
+                    }
+                    
+                    chatHistory.push({
+                        id: Date.now(),
+                        type: 'user',
+                        content: message,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                    renderChatHistory();
+                    
+                    // Use command context if available
+                    vscode.postMessage({
+                        type: 'chatWithModel',
+                        prompt: message,
+                        context: commandContext
+                    });
+                    
+                    setButtonLoading(true, 'Thinking...');
                 }
-
-                chatHistory.push({
-                    id: Date.now(),
-                    type: 'user',
-                    content: message,
-                    timestamp: new Date().toLocaleTimeString()
-                });
-
-                renderChatHistory();
-
-                const contextToUse = useContext.checked ? currentContext : '';
-
-                vscode.postMessage({
-                    type: 'chatWithModel',
-                    prompt: message,
-                    context: contextToUse
-                });
-
-                setButtonLoading(chatButton, chatButtonText, true, 'Thinking...');
+                
                 chatInput.value = '';
                 saveState();
             }
@@ -675,47 +683,194 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
             function renderChatHistory() {
                 if (chatHistory.length === 0) {
                     chatOutput.innerHTML = \`<div class="welcome-content">
-                        <strong>🤖 AI Chat Assistant</strong>
+                        <strong>🤖 Welcome to My Code Assistant!</strong>
                         
-                        Select an Ollama model above to start chatting.
+                        <strong>📋 Available Commands:</strong>
+                        • <span class="command-example">@project</span> - Show project structure
+                        • <span class="command-example">@directory &lt;path&gt;</span> - Show directory tree
+                        • <span class="command-example">@file &lt;path&gt;</span> - Show file content
+                        
+                        <strong>💬 AI Chat:</strong>
+                        • Select a model above to enable AI
+                        • Ask questions in natural language
+                        
+                        Ready to assist! Type a command or question below.
                     </div>\`;
                     return;
                 }
 
                 chatOutput.innerHTML = chatHistory.map(msg => \`
                     <div class="chat-message \${msg.type}" id="msg-\${msg.id}">
-                        <div class="message-header">\${msg.type === 'user' ? 'You' : 'Assistant'} • \${msg.timestamp}</div>
-                        <div class="message-content">\${marked.parse(msg.content)}</div>
+                        <div class="message-header">\${msg.type === 'user' ? 'You' : msg.type === 'system' ? '📋 System' : '🤖 Assistant'} • \${msg.timestamp}</div>
+                        <div class="message-content">\${msg.type === 'system' ? '<pre>' + msg.content + '</pre>' : marked.parse(msg.content)}</div>
                     </div>
                 \`).join('');
                 
                 chatOutput.scrollTop = chatOutput.scrollHeight;
             }
 
-            function updateContextPreview() {
-                if (currentContext && useContext.checked) {
-                    contextPreview.style.display = 'block';
-                    contextPreview.textContent = currentContext.substring(0, 200) + (currentContext.length > 200 ? '...' : '');
-                } else {
-                    contextPreview.style.display = 'none';
-                }
+            // Autocomplete Functions
+            function handleChatInputChange() {
+                clearTimeout(autocompleteDebounceTimer);
+                
+                autocompleteDebounceTimer = setTimeout(() => {
+                    const text = chatInput.value;
+                    const cursorPos = chatInput.selectionStart;
+
+        // Get the current line
+        const textBeforeCursor = text.substring(0, cursorPos);
+        const lines = textBeforeCursor.split('\\n');
+        const currentLine = lines[lines.length - 1];
+
+        // Check if we're typing a command
+        const fileMatch = currentLine.match(/@file\\s+(.*)$/);
+        const dirMatch = currentLine.match(/@directory\\s+(.*)$/);
+
+        if (fileMatch) {
+            requestAutocomplete('@file', fileMatch[1]);
+        } else if (dirMatch) {
+            requestAutocomplete('@directory', dirMatch[1]);
+        } else {
+            hideAutocomplete();
+        }
+    }, 300);
+}
+
+function requestAutocomplete(command, partialPath) {
+    vscode.postMessage({
+        type: 'autocomplete',
+        command: command,
+        partialPath: partialPath || ''
+    });
+}
+
+function handleAutocompleteResults(items) {
+    autocompleteItems = items || [];
+    selectedAutocompleteIndex = -1;
+
+    if (autocompleteItems.length === 0) {
+        hideAutocomplete();
+        return;
+    }
+
+    showAutocomplete();
+}
+
+function showAutocomplete() {
+    if (autocompleteItems.length === 0) return;
+
+    autocompleteDropdown.innerHTML = autocompleteItems.map((item, index) => \`
+                    <div class="autocomplete-item" data-index="\${index}">
+                        <span class="icon">\${item.icon}</span>
+                        <span class="path">\${item.path}</span>
+                    </div>
+                \`).join('');
+                
+                // Add click handlers
+                autocompleteDropdown.querySelectorAll('.autocomplete-item').forEach((elem, index) => {
+                    elem.addEventListener('click', () => {
+                        selectAutocompleteItem(index);
+                    });
+                });
+                
+                autocompleteDropdown.classList.add('visible');
             }
 
-            // Event listeners
-            submitButton.addEventListener('click', executeCommands);
-            chatButton.addEventListener('click', sendChatMessage);
+            function hideAutocomplete() {
+                autocompleteDropdown.classList.remove('visible');
+                autocompleteItems = [];
+                selectedAutocompleteIndex = -1;
+            }
 
-            clearButton.addEventListener('click', () => {
-                commandInput.value = '';
-                output.innerHTML = \`<div class="welcome-content">Output cleared. Enter a command to get started.</div>\`;
-                currentContext = '';
-                updateContextPreview();
-                commandInput.focus();
+            function handleAutocompleteKeydown(e) {
+                if (!autocompleteDropdown.classList.contains('visible')) {
+                    return false;
+                }
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedAutocompleteIndex = Math.min(
+                        selectedAutocompleteIndex + 1,
+                        autocompleteItems.length - 1
+                    );
+                    updateAutocompleteSelection();
+                    return true;
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedAutocompleteIndex = Math.max(selectedAutocompleteIndex - 1, 0);
+                    updateAutocompleteSelection();
+                    return true;
+                } else if (e.key === 'Enter' && selectedAutocompleteIndex >= 0) {
+                    e.preventDefault();
+                    selectAutocompleteItem(selectedAutocompleteIndex);
+                    return true;
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideAutocomplete();
+                    return true;
+                }
+                
+                return false;
+            }
+
+            function updateAutocompleteSelection() {
+                const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+                items.forEach((item, index) => {
+                    if (index === selectedAutocompleteIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+
+            function selectAutocompleteItem(index) {
+                if (index < 0 || index >= autocompleteItems.length) return;
+                
+                const selectedItem = autocompleteItems[index];
+                const text = chatInput.value;
+                const cursorPos = chatInput.selectionStart;
+                
+                // Get the current line
+                const textBeforeCursor = text.substring(0, cursorPos);
+                const textAfterCursor = text.substring(cursorPos);
+                const lines = textBeforeCursor.split('\\n');
+                const currentLine = lines[lines.length - 1];
+                
+                // Replace the partial path with the selected path
+                let newLine = currentLine;
+                if (currentLine.includes('@file')) {
+                    newLine = '@file ' + selectedItem.path;
+                } else if (currentLine.includes('@directory')) {
+                    newLine = '@directory ' + selectedItem.path;
+                }
+                
+                // Reconstruct the text
+                lines[lines.length - 1] = newLine;
+                const newText = lines.join('\\n') + textAfterCursor;
+                
+                chatInput.value = newText;
+                chatInput.selectionStart = chatInput.selectionEnd = lines.join('\\n').length;
+                
+                hideAutocomplete();
+                chatInput.focus();
                 saveState();
+            }
+
+            // Close autocomplete when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!chatInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+                    hideAutocomplete();
+                }
             });
+
+            // Event listeners
+            chatButton.addEventListener('click', sendMessage);
 
             clearChatButton.addEventListener('click', () => {
                 chatHistory = [];
+                commandContext = '';
                 renderChatHistory();
                 chatInput.focus();
                 saveState();
@@ -723,28 +878,24 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
 
             cancelButton.addEventListener('click', () => {
                 vscode.postMessage({ type: 'cancelRequest' });
-                setButtonLoading(chatButton, chatButtonText, false);
-            });
-
-            commandInput.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.key === 'Enter') {
-                    e.preventDefault();
-                    executeCommands();
-                }
-                setTimeout(saveState, 100);
+                setButtonLoading(false);
             });
 
             chatInput.addEventListener('keydown', (e) => {
+                if (handleAutocompleteKeydown(e)) {
+                    return;
+                }
                 if (e.ctrlKey && e.key === 'Enter') {
                     e.preventDefault();
-                    sendChatMessage();
+                    sendMessage();
                 }
                 setTimeout(saveState, 100);
             });
 
-            commandInput.addEventListener('input', saveState);
-            chatInput.addEventListener('input', saveState);
-            useContext.addEventListener('change', updateContextPreview);
+            chatInput.addEventListener('input', () => {
+                handleChatInputChange();
+                saveState();
+            });
 
             modelSelect.addEventListener('change', (e) => {
                 const selectedModel = e.target.value;
@@ -767,17 +918,22 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                 
                 switch (message.type) {
                     case 'result':
-                        output.textContent = message.value;
-                        output.scrollTop = output.scrollHeight;
-                        setButtonLoading(submitButton, buttonText, false);
-                        commandInput.value = '';
+                        // Command result - add to chat as system message
+                        chatHistory.push({
+                            id: Date.now(),
+                            type: 'system',
+                            content: message.value,
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+                        renderChatHistory();
+                        setButtonLoading(false);
                         
+                        // Update command context for AI
                         if (message.context) {
-                            currentContext = message.context;
-                            updateContextPreview();
+                            commandContext = message.context;
                         }
                         
-                        commandInput.focus();
+                        chatInput.focus();
                         saveState();
                         break;
 
@@ -786,7 +942,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                         connectionText.textContent = \`Connected • \${message.models.length} models available\`;
                         modelError.style.display = 'none';
                         
-                        modelSelect.innerHTML = '<option value="">Select a model...</option>';
+                        modelSelect.innerHTML = '<option value="">No AI model (commands only)</option>';
                         message.models.forEach(model => {
                             const option = document.createElement('option');
                             option.value = model.name;
@@ -814,7 +970,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                         
                         if (isDone) {
                             saveState();
-                            setButtonLoading(chatButton, chatButtonText, false);
+                            setButtonLoading(false);
                             break;
                         }
 
@@ -857,9 +1013,13 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                             timestamp: new Date().toLocaleTimeString()
                         });
                         renderChatHistory();
-                        setButtonLoading(chatButton, chatButtonText, false);
+                        setButtonLoading(false);
                         chatInput.focus();
                         saveState();
+                        break;
+
+                    case 'autocompleteResults':
+                        handleAutocompleteResults(message.items);
                         break;
                 }
             });
