@@ -620,7 +620,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                 const hasCommands = message.includes('@project') || message.includes('@file') || message.includes('@directory');
                 
                 if (hasCommands) {
-                    // Execute commands
+                    // Execute commands and prepare for AI analysis
                     chatHistory.push({
                         id: Date.now(),
                         type: 'user',
@@ -629,12 +629,23 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                     });
                     renderChatHistory();
                     
+                    // Store the original command for AI analysis
+                    const selectedModel = modelSelect.value;
+                    if (selectedModel) {
+                        // Mark that we should auto-analyze the result
+                        vscode.setState({
+                            ...vscode.getState(),
+                            pendingAutoAnalysis: true,
+                            originalCommand: message
+                        });
+                    }
+                    
                     vscode.postMessage({
                         type: 'command',
                         value: message
                     });
                     
-                    setButtonLoading(true, 'Executing...');
+                    setButtonLoading(true, selectedModel ? 'Executing & analyzing...' : 'Executing...');
                 } else {
                     // Send to AI
                     const selectedModel = modelSelect.value;
@@ -926,14 +937,46 @@ function showAutocomplete() {
                             timestamp: new Date().toLocaleTimeString()
                         });
                         renderChatHistory();
-                        setButtonLoading(false);
                         
                         // Update command context for AI
                         if (message.context) {
                             commandContext = message.context;
                         }
                         
-                        chatInput.focus();
+                        // Check if we should auto-analyze with AI
+                        const state = vscode.getState();
+                        const selectedModel = modelSelect.value;
+                        
+                        if (state?.pendingAutoAnalysis && selectedModel) {
+                            // Clear the pending flag
+                            vscode.setState({
+                                ...state,
+                                pendingAutoAnalysis: false
+                            });
+                            
+                            // Automatically send to AI for analysis
+                            const analysisPrompt = 'Please analyze and explain the following command result:\\n\\nCommand: ' + state.originalCommand + '\\n\\nResult:\\n' + message.value;
+                            
+                            chatHistory.push({
+                                id: Date.now() + 1,
+                                type: 'user',
+                                content: '🤖 Analyzing result...',
+                                timestamp: new Date().toLocaleTimeString()
+                            });
+                            renderChatHistory();
+                            
+                            vscode.postMessage({
+                                type: 'chatWithModel',
+                                prompt: analysisPrompt,
+                                context: commandContext
+                            });
+                            
+                            setButtonLoading(true, 'AI analyzing...');
+                        } else {
+                            setButtonLoading(false);
+                            chatInput.focus();
+                        }
+                        
                         saveState();
                         break;
 
