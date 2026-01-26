@@ -168,7 +168,7 @@ class PathValidator {
         try {
             // Remove any path traversal attempts
             const sanitized = inputPath.replace(/\.\./g, '');
-            
+
             // Resolve the full path
             let fullPath: string;
             if (path.isAbsolute(sanitized)) {
@@ -208,9 +208,9 @@ class PathValidator {
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('My Code Assistant extension is now active!');
-    
+
     const provider = new MyCodeAssistantProvider(context.extensionUri);
-    
+
     // Register webview provider
     const disposable = vscode.window.registerWebviewViewProvider(
         'myCodeAssistant',
@@ -221,14 +221,14 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
     );
-    
+
     context.subscriptions.push(disposable);
-    
+
     // Register refresh command
     const refreshCommand = vscode.commands.registerCommand('myCodeAssistant.refresh', () => {
         provider.refresh();
     });
-    
+
     context.subscriptions.push(refreshCommand);
 
     // Register configuration command
@@ -267,7 +267,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
     private markedUri?: vscode.Uri;
     private httpClient: HttpClient;
     private abortController?: AbortController;
-    
+
     constructor(
         private readonly _extensionUri: vscode.Uri,
     ) {
@@ -368,7 +368,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                 );
                 const dirPart = searchPattern.substring(0, lastSeparator);
                 searchPattern = searchPattern.substring(lastSeparator + 1);
-                
+
                 const testPath = path.join(workspaceRoot, dirPart);
                 if (fs.existsSync(testPath) && fs.statSync(testPath).isDirectory()) {
                     searchDir = testPath;
@@ -425,7 +425,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                 }
 
                 const fullPath = path.join(searchDir, item);
-                
+
                 try {
                     const stats = fs.statSync(fullPath);
                     const isDirectory = stats.isDirectory();
@@ -484,9 +484,9 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         try {
             const config = vscode.workspace.getConfiguration('myCodeAssistant');
             const ollamaUrl = config.get<string>('ollamaUrl', 'http://localhost:11434');
-            
+
             const data = await this.httpClient.request<OllamaResponse>(`${ollamaUrl}/api/tags`);
-            
+
             this._view?.webview.postMessage({
                 type: 'modelsLoaded',
                 models: data.models.map(model => ({
@@ -510,7 +510,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         try {
             const config = vscode.workspace.getConfiguration('myCodeAssistant');
             await config.update('selectedModel', modelName, vscode.ConfigurationTarget.Global);
-            
+
             this._view?.webview.postMessage({
                 type: 'modelSelected',
                 model: modelName
@@ -556,7 +556,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                 (line: string) => {
                     try {
                         const parsedData = JSON.parse(line) as OllamaGenerateResponse;
-                        
+
                         this._view?.webview.postMessage({
                             type: 'chatResponse',
                             response: parsedData.response,
@@ -607,8 +607,8 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
             output = 'No valid commands found. Commands must start with @';
         }
 
-        this._view?.webview.postMessage({ 
-            type: 'result', 
+        this._view?.webview.postMessage({
+            type: 'result',
             value: output.trim(),
             context: context.trim()
         });
@@ -622,17 +622,17 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         switch (cmd) {
             case '@project':
                 return this.getProjectInfo();
-            
+
             case '@directory':
                 const dirPath = args.join(' ');
                 return this.getDirectoryInfo(dirPath);
-            
+
             case '@file':
                 const filePath = args.join(' ');
                 return this.getFileContent(filePath);
-            
+
             default:
-                return `Unknown command: ${cmd}\n\nAvailable commands:\n• @project - Show project info and directory tree\n• @directory <path> - Show directory tree for specific path\n• @file <path> - Show file content`;
+                return `Unknown command: ${cmd}\n\nAvailable commands:\n• @project - Show project info and directory tree\n• @directory <path> - Show directory tree for specific path\n• @file <path> - Show file content\n• @analyze-dir <path> - Analyze all files in a directory\n• @analyze-project - Smart project-wide analysis\n• @batch <file1> <file2> ... - Analyze multiple files together`;
         }
     }
 
@@ -715,7 +715,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
 
             const content = fs.readFileSync(validation.fullPath, 'utf8');
             const fileExtension = path.extname(validation.fullPath);
-            
+
             let result = `📄 File: ${filePath}\n`;
             result += `📍 Full Path: ${validation.fullPath}\n`;
             result += `📊 Size: ${this.formatBytes(stats.size)}\n`;
@@ -724,7 +724,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
             result += '📝 Content:\n';
             result += '─'.repeat(50) + '\n';
             result += content;
-            
+
             if (!content.endsWith('\n')) {
                 result += '\n';
             }
@@ -754,7 +754,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
 
         try {
             const items = fs.readdirSync(dirPath);
-            
+
             const filteredItems = items.filter(item => {
                 if (item.startsWith('.') && !['.vscode', '.env', '.gitignore'].includes(item)) {
                     return false;
@@ -768,11 +768,11 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
             filteredItems.sort((a, b) => {
                 const aPath = path.join(dirPath, a);
                 const bPath = path.join(dirPath, b);
-                
+
                 try {
                     const aIsDir = fs.statSync(aPath).isDirectory();
                     const bIsDir = fs.statSync(bPath).isDirectory();
-                    
+
                     if (aIsDir && !bIsDir) return -1;
                     if (!aIsDir && bIsDir) return 1;
                     return a.localeCompare(b, undefined, { numeric: true });
@@ -784,7 +784,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
             for (let i = 0; i < filteredItems.length; i++) {
                 const item = filteredItems[i];
                 const itemPath = path.join(dirPath, item);
-                
+
                 try {
                     const stats = fs.statSync(itemPath);
                     const isLast = i === filteredItems.length - 1;
@@ -824,7 +824,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
     private getFileIcon(fileName: string): string {
         const ext = path.extname(fileName).toLowerCase();
         const name = path.basename(fileName).toLowerCase();
-        
+
         const specialFiles: Record<string, string> = {
             'package.json': '📦',
             'readme.md': '📖',
@@ -850,9 +850,9 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
             '.go': '🐹', '.rs': '🦀', '.xml': '📄', '.yaml': '📄',
             '.yml': '📄', '.sh': '⚡', '.bat': '⚡', '.exe': '⚙️', '.dll': '⚙️'
         };
-        
+
         return iconMap[ext] || '📄';
     }
 }
 
-export function deactivate() {}
+export function deactivate() { }

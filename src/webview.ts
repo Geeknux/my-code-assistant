@@ -710,12 +710,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                     return;
                 }
 
-                chatOutput.innerHTML = chatHistory.map(msg => \`
-                    <div class="chat-message \${msg.type}" id="msg-\${msg.id}">
-                        <div class="message-header">\${msg.type === 'user' ? 'You' : msg.type === 'system' ? '📋 System' : '🤖 Assistant'} • \${msg.timestamp}</div>
-                        <div class="message-content">\${msg.type === 'system' ? '<pre>' + msg.content + '</pre>' : marked.parse(msg.content)}</div>
-                    </div>
-                \`).join('');
+                chatOutput.innerHTML = chatHistory.map(msg => \`<div class="chat-message \${msg.type}" id="msg-\${msg.id}"><div class="message-header">\${msg.type === 'user' ? 'You' : msg.type === 'system' ? '📋 System' : '🤖 Assistant'} • \${msg.timestamp}</div><div class="message-content">\${msg.type === 'system' ? '<pre>' + msg.content + '</pre>' : marked.parse(msg.content)}</div></div>\`).join('');
                 
                 chatOutput.scrollTop = chatOutput.scrollHeight;
             }
