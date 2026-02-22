@@ -631,9 +631,76 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                 const filePath = args.join(' ');
                 return this.getFileContent(filePath);
 
+            case '@help':
+                return this.getHelpContent();
+
             default:
-                return `Unknown command: ${cmd}\n\nAvailable commands:\n• @project - Show project info and directory tree\n• @directory <path> - Show directory tree for specific path\n• @file <path> - Show file content\n• @analyze-dir <path> - Analyze all files in a directory\n• @analyze-project - Smart project-wide analysis\n• @batch <file1> <file2> ... - Analyze multiple files together`;
+                return `Unknown command: ${cmd}\n\nType @help for a list of available commands.`;
         }
+    }
+
+    private getHelpContent(): string {
+        return `
+╔══════════════════════════════════════════════════════════════╗
+║                    📚 MY CODE ASSISTANT HELP                 ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 AVAILABLE COMMANDS
+─────────────────────────────────────────────────────────────────
+
+  @help                     Show this help message
+  @project                  Show project structure and directory tree
+  @directory <path>         Show directory tree for a specific path
+  @file <path>              Show file content with metadata
+
+💬 AI CHAT
+─────────────────────────────────────────────────────────────────
+
+  • Select an AI model from the dropdown above
+  • Type your question in plain English
+  • Use commands to gather context, then ask questions
+  • AI automatically analyzes command results when a model is selected
+
+✨ EXAMPLES
+─────────────────────────────────────────────────────────────────
+
+  @project                  → See your project structure
+  @file package.json        → View package.json contents
+  @file src/index.ts        → View a source file
+  @directory src            → Explore the src folder
+  
+  "What does this project do?"          → Ask AI a question
+  "Explain the main function"           → Get code explanations
+  "How can I improve this code?"        → Get suggestions
+
+⌨️ KEYBOARD SHORTCUTS
+─────────────────────────────────────────────────────────────────
+
+  Ctrl+Enter                Send message
+  ↑/↓ Arrow Keys            Navigate autocomplete suggestions
+  Enter                     Select autocomplete item
+  Escape                    Close autocomplete dropdown
+
+💡 TIPS
+─────────────────────────────────────────────────────────────────
+
+  • Type @file or @directory and a space to see path autocomplete
+  • Commands work without AI model selected
+  • AI analysis is automatic when a model is selected
+  • Use Clear button to reset conversation
+  • Commands provide context for AI questions
+
+🔗 WORKFLOW EXAMPLE
+─────────────────────────────────────────────────────────────────
+
+  1. @project               → Get project overview
+  2. @file src/main.ts      → Examine a specific file
+  3. "What does this do?"   → Ask AI to explain
+  4. "How can I add X?"     → Get implementation help
+
+─────────────────────────────────────────────────────────────────
+                        Ready to assist! 🚀
+`;
     }
 
     private getProjectInfo(): string {

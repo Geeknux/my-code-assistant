@@ -505,6 +505,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
             • <span class="command-example">@project</span> - Show project structure and directory tree
             • <span class="command-example">@directory &lt;path&gt;</span> - Show directory tree for specific path
             • <span class="command-example">@file &lt;path&gt;</span> - Show file content and metadata
+            • <span class="command-example">@help</span> - Show detailed help and command reference
             
             <strong>💬 AI Chat:</strong>
             • Select a model above to enable AI conversations
@@ -537,7 +538,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
             <textarea 
                 class="input-area" 
                 id="chatInput" 
-                placeholder="Type @project, @file, @directory or ask a question..."
+                placeholder="Type @project, @file, @directory, @help or ask a question..."
             ></textarea>
         </div>
         
@@ -617,7 +618,7 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                 if (!message || isProcessing) return;
 
                 // Check if message contains commands
-                const hasCommands = message.includes('@project') || message.includes('@file') || message.includes('@directory');
+                const hasCommands = message.includes('@project') || message.includes('@file') || message.includes('@directory') || message.includes('@help');
                 
                 if (hasCommands) {
                     // Execute commands and prepare for AI analysis
