@@ -309,7 +309,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                             await this.selectModel(message.value);
                             break;
                         case 'chatWithModel':
-                            await this.chatWithModel(message.prompt, message.context);
+                            await this.chatWithModel(message.prompt, message.context, message.actionType);
                             break;
                         case 'cancelRequest':
                             this.cancelCurrentRequest();
@@ -520,7 +520,7 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async chatWithModel(prompt: string, context?: string) {
+    private async chatWithModel(prompt: string, context?: string, actionType?: string) {
         try {
             const config = vscode.workspace.getConfiguration('myCodeAssistant');
             const ollamaUrl = config.get<string>('ollamaUrl', 'http://localhost:11434');
@@ -536,7 +536,11 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
 
             let fullPrompt = prompt;
             if (context) {
-                fullPrompt = `Context:\n${context}\n\nQuestion: ${prompt}`;
+                if (actionType) {
+                    fullPrompt = this.buildActionPrompt(actionType, context, prompt);
+                } else {
+                    fullPrompt = `Context:\n${context}\n\nQuestion: ${prompt}`;
+                }
             }
 
             const requestBody: OllamaGenerateRequest = {
@@ -631,6 +635,30 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
                 const filePath = args.join(' ');
                 return this.getFileContent(filePath);
 
+            case '@explain':
+                const explainPath = args.join(' ');
+                return this.getCodeForAnalysis(explainPath, 'explain');
+
+            case '@refactor':
+                const refactorPath = args.join(' ');
+                return this.getCodeForAnalysis(refactorPath, 'refactor');
+
+            case '@test':
+                const testPath = args.join(' ');
+                return this.getCodeForAnalysis(testPath, 'test');
+
+            case '@document':
+                const docPath = args.join(' ');
+                return this.getCodeForAnalysis(docPath, 'document');
+
+            case '@debug':
+                const debugPath = args.join(' ');
+                return this.getCodeForAnalysis(debugPath, 'debug');
+
+            case '@optimize':
+                const optimizePath = args.join(' ');
+                return this.getCodeForAnalysis(optimizePath, 'optimize');
+
             case '@help':
                 return this.getHelpContent();
 
@@ -645,13 +673,23 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
 ║                    📚 MY CODE ASSISTANT HELP                 ║
 ╚══════════════════════════════════════════════════════════════╝
 
-📋 AVAILABLE COMMANDS
+📋 FILE EXPLORATION COMMANDS
 ─────────────────────────────────────────────────────────────────
 
   @help                     Show this help message
   @project                  Show project structure and directory tree
   @directory <path>         Show directory tree for a specific path
   @file <path>              Show file content with metadata
+
+🎯 CODE ACTION COMMANDS (AI-Powered)
+─────────────────────────────────────────────────────────────────
+
+  @explain <path>           Get detailed code explanation
+  @refactor <path>          Get refactoring suggestions
+  @test <path>              Generate unit tests for code
+  @document <path>          Generate documentation
+  @debug <path>             Analyze code for bugs and issues
+  @optimize <path>          Get performance optimization tips
 
 💬 AI CHAT
 ─────────────────────────────────────────────────────────────────
@@ -664,13 +702,21 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
 ✨ EXAMPLES
 ─────────────────────────────────────────────────────────────────
 
+  File Exploration:
   @project                  → See your project structure
   @file package.json        → View package.json contents
-  @file src/index.ts        → View a source file
   @directory src            → Explore the src folder
   
+  Code Actions:
+  @explain src/extension.ts → Get detailed explanation
+  @refactor src/utils.ts    → Get refactoring suggestions
+  @test src/api/client.ts   → Generate unit tests
+  @document src/helper.ts   → Generate documentation
+  @debug src/service.ts     → Find and fix bugs
+  @optimize src/parser.ts   → Improve performance
+  
+  AI Questions:
   "What does this project do?"          → Ask AI a question
-  "Explain the main function"           → Get code explanations
   "How can I improve this code?"        → Get suggestions
 
 ⌨️ KEYBOARD SHORTCUTS
@@ -751,6 +797,66 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         result += this.getDirectoryTree(validation.fullPath, 0, 3);
 
         return result;
+    }
+
+    private getCodeForAnalysis(filePath: string, action: string): string {
+        if (!filePath) {
+            const examples: Record<string, string> = {
+                'explain': '@explain src/extension.ts',
+                'refactor': '@refactor src/utils/helper.ts',
+                'test': '@test src/components/Button.tsx',
+                'document': '@document src/api/client.ts',
+                'debug': '@debug src/services/auth.ts',
+                'optimize': '@optimize src/utils/performance.ts'
+            };
+            return `Please provide a file path.\n\nUsage: @${action} <path>\n\nExample:\n• ${examples[action] || '@' + action + ' src/file.ts'}`;
+        }
+
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            return 'No workspace folder found.';
+        }
+
+        const validator = new PathValidator(workspaceFolder.uri.fsPath);
+        const validation = validator.validatePath(filePath);
+
+        if (!validation.valid) {
+            return `❌ ${validation.error}: ${filePath}`;
+        }
+
+        const stats = fs.lstatSync(validation.fullPath);
+        if (!stats.isFile()) {
+            return `❌ Path is not a file: ${filePath}`;
+        }
+
+        try {
+            if (stats.size > 1024 * 1024) {
+                return `❌ File too large: ${filePath}\n\nFile size: ${(stats.size / 1024 / 1024).toFixed(2)} MB\n\nFiles larger than 1MB are not displayed.`;
+            }
+
+            const content = fs.readFileSync(validation.fullPath, 'utf8');
+            const fileExtension = path.extname(validation.fullPath);
+            const lineCount = content.split('\n').length;
+
+            let result = `📄 File: ${filePath}\n`;
+            result += `📍 Full Path: ${validation.fullPath}\n`;
+            result += `📊 Size: ${this.formatBytes(stats.size)}\n`;
+            result += `📏 Lines: ${lineCount}\n`;
+            result += `🏷️  Type: ${fileExtension || 'no extension'}\n`;
+            result += `🎯 Action: ${action.toUpperCase()}\n\n`;
+            result += '📝 Content:\n';
+            result += '─'.repeat(50) + '\n';
+            result += content;
+
+            if (!content.endsWith('\n')) {
+                result += '\n';
+            }
+            result += '─'.repeat(50);
+
+            return result;
+        } catch (error) {
+            return `❌ Error reading file: ${filePath}\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        }
     }
 
     private getFileContent(filePath: string): string {
@@ -886,6 +992,140 @@ class MyCodeAssistantProvider implements vscode.WebviewViewProvider {
         }
 
         return result;
+    }
+
+    private buildActionPrompt(actionType: string, context: string, userPrompt: string): string {
+        const prompts: Record<string, string> = {
+            'explain': `You are a code explanation expert. Your task is to explain the following code in a clear, comprehensive way.
+
+Code to analyze:
+${context}
+
+Provide:
+1. **Overview**: What does this code do?
+2. **Key Components**: Break down the main parts
+3. **Logic Flow**: Explain how it works step-by-step
+4. **Dependencies**: What does it rely on?
+5. **Potential Issues**: Any concerns or edge cases?
+
+Additional context from user: ${userPrompt || 'None'}
+
+Provide a clear, well-structured explanation.`,
+
+            'refactor': `You are a code refactoring expert. Your task is to suggest improvements for the following code.
+
+Code to refactor:
+${context}
+
+Provide:
+1. **Current Issues**: What could be improved?
+2. **Refactoring Suggestions**: Specific improvements
+3. **Refactored Code**: Show the improved version
+4. **Benefits**: Why these changes are better
+5. **Migration Notes**: How to apply these changes safely
+
+Focus on:
+- Code readability and maintainability
+- Performance optimizations
+- Best practices and design patterns
+- Removing code smells
+- Type safety improvements
+
+Additional requirements: ${userPrompt || 'General refactoring'}
+
+Provide actionable refactoring suggestions with code examples.`,
+
+            'test': `You are a test generation expert. Your task is to create comprehensive unit tests for the following code.
+
+Code to test:
+${context}
+
+Provide:
+1. **Test Strategy**: What should be tested?
+2. **Test Cases**: List all test scenarios
+3. **Test Code**: Complete, runnable test suite
+4. **Edge Cases**: Important edge cases to cover
+5. **Mocking Strategy**: What needs to be mocked?
+
+Include tests for:
+- Happy path scenarios
+- Error handling
+- Edge cases
+- Boundary conditions
+- Integration points
+
+Additional requirements: ${userPrompt || 'Comprehensive test coverage'}
+
+Generate complete, ready-to-use test code with appropriate testing framework (Jest, Mocha, etc.).`,
+
+            'document': `You are a technical documentation expert. Your task is to create comprehensive documentation for the following code.
+
+Code to document:
+${context}
+
+Provide:
+1. **Function/Class Documentation**: JSDoc/TSDoc comments
+2. **Usage Examples**: How to use this code
+3. **Parameters**: Detailed parameter descriptions
+4. **Return Values**: What it returns
+5. **Examples**: Code examples showing usage
+6. **Notes**: Important considerations
+
+Additional requirements: ${userPrompt || 'Complete documentation'}
+
+Generate professional, clear documentation that can be directly added to the code.`,
+
+            'debug': `You are a debugging expert. Your task is to analyze the following code for potential bugs and issues.
+
+Code to debug:
+${context}
+
+Provide:
+1. **Potential Bugs**: Issues you've identified
+2. **Root Cause Analysis**: Why these bugs occur
+3. **Fixes**: How to fix each issue
+4. **Prevention**: How to prevent similar bugs
+5. **Testing**: How to verify the fixes
+
+Look for:
+- Logic errors
+- Type errors
+- Null/undefined issues
+- Race conditions
+- Memory leaks
+- Performance bottlenecks
+- Security vulnerabilities
+
+Additional context: ${userPrompt || 'General debugging'}
+
+Provide detailed debugging analysis with solutions.`,
+
+            'optimize': `You are a performance optimization expert. Your task is to optimize the following code.
+
+Code to optimize:
+${context}
+
+Provide:
+1. **Performance Analysis**: Current bottlenecks
+2. **Optimization Opportunities**: What can be improved
+3. **Optimized Code**: Show the improved version
+4. **Performance Impact**: Expected improvements
+5. **Trade-offs**: Any trade-offs to consider
+
+Focus on:
+- Time complexity improvements
+- Space complexity improvements
+- Algorithm optimization
+- Caching strategies
+- Lazy loading
+- Parallel processing
+
+Additional requirements: ${userPrompt || 'General performance optimization'}
+
+Provide specific, actionable optimization suggestions with code examples.`
+        };
+
+        return prompts[actionType] || `Context:\n${context}\n\nQuestion: ${userPrompt}`;
     }
 
     private getFileIcon(fileName: string): string {

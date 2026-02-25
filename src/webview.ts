@@ -618,7 +618,10 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                 if (!message || isProcessing) return;
 
                 // Check if message contains commands
-                const hasCommands = message.includes('@project') || message.includes('@file') || message.includes('@directory') || message.includes('@help');
+                const hasCommands = message.includes('@project') || message.includes('@file') || message.includes('@directory') || message.includes('@help') || message.includes('@explain') || message.includes('@refactor') || message.includes('@test') || message.includes('@document') || message.includes('@debug') || message.includes('@optimize');
+                
+                // Detect action type for specialized AI prompts
+                const actionType = detectActionType(message);
                 
                 if (hasCommands) {
                     // Execute commands and prepare for AI analysis
@@ -637,7 +640,8 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                         vscode.setState({
                             ...vscode.getState(),
                             pendingAutoAnalysis: true,
-                            originalCommand: message
+                            originalCommand: message,
+                            actionType: actionType
                         });
                     }
                     
@@ -646,7 +650,8 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                         value: message
                     });
                     
-                    setButtonLoading(true, selectedModel ? 'Executing & analyzing...' : 'Executing...');
+                    const loadingText = actionType ? \`Analyzing (\${actionType})...\` : (selectedModel ? 'Executing & analyzing...' : 'Executing...');
+                    setButtonLoading(true, loadingText);
                 } else {
                     // Send to AI
                     const selectedModel = modelSelect.value;
@@ -654,12 +659,6 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                         // No model selected, just show message
                         chatHistory.push({
                             id: Date.now(),
-                            type: 'user',
-                            content: message,
-                            timestamp: new Date().toLocaleTimeString()
-                        });
-                        chatHistory.push({
-                            id: Date.now() + 1,
                             type: 'assistant',
                             content: '⚠️ No AI model selected. Please select a model above to enable AI chat, or use commands like @project, @file, @directory.',
                             timestamp: new Date().toLocaleTimeString()
@@ -682,7 +681,8 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
                     vscode.postMessage({
                         type: 'chatWithModel',
                         prompt: message,
-                        context: commandContext
+                        context: commandContext,
+                        actionType: actionType
                     });
                     
                     setButtonLoading(true, 'Thinking...');
@@ -694,29 +694,46 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
 
             function renderChatHistory() {
                 if (chatHistory.length === 0) {
-                    chatOutput.innerHTML = \`<div class="welcome-content">
-                        <strong>🤖 Welcome to My Code Assistant!</strong>
-                        
-                        <strong>📋 Available Commands:</strong>
-                        • <span class="command-example">@project</span> - Show project structure
-                        • <span class="command-example">@directory &lt;path&gt;</span> - Show directory tree
-                        • <span class="command-example">@file &lt;path&gt;</span> - Show file content
-                        
-                        <strong>💬 AI Chat:</strong>
-                        • Select a model above to enable AI
-                        • Ask questions in natural language
-                        
-                        Ready to assist! Type a command or question below.
-                    </div>\`;
+                    chatOutput.innerHTML = '<div class="welcome-content">' +
+                        '<strong>&#x1F916; Welcome to My Code Assistant!</strong>' +
+                        '<strong>&#x1F4CB; Available Commands:</strong>' +
+                        '&#x2022; <span class="command-example">@project</span> - Show project structure<br>' +
+                        '&#x2022; <span class="command-example">@directory &lt;path&gt;</span> - Show directory tree<br>' +
+                        '&#x2022; <span class="command-example">@file &lt;path&gt;</span> - Show file content<br>' +
+                        '&#x2022; <span class="command-example">@explain &lt;path&gt;</span> - Explain code<br>' +
+                        '&#x2022; <span class="command-example">@refactor &lt;path&gt;</span> - Refactor suggestions<br>' +
+                        '&#x2022; <span class="command-example">@test &lt;path&gt;</span> - Generate tests<br>' +
+                        '<strong>&#x1F4AC; AI Chat:</strong>' +
+                        '&#x2022; Select a model above to enable AI<br>' +
+                        '&#x2022; Ask questions in natural language<br>' +
+                        'Ready to assist! Type a command or question below.' +
+                        '</div>';
                     return;
                 }
 
-                chatOutput.innerHTML = chatHistory.map(msg => \`<div class="chat-message \${msg.type}" id="msg-\${msg.id}"><div class="message-header">\${msg.type === 'user' ? 'You' : msg.type === 'system' ? '📋 System' : '🤖 Assistant'} • \${msg.timestamp}</div><div class="message-content">\${msg.type === 'system' ? '<pre>' + msg.content + '</pre>' : marked.parse(msg.content)}</div></div>\`).join('');
+                chatOutput.innerHTML = chatHistory.map(function(msg) {
+                    var header = msg.type === 'user' ? 'You' : msg.type === 'system' ? '&#x1F4CB; System' : '&#x1F916; Assistant';
+                    var body = msg.type === 'system' ? '<pre>' + msg.content + '</pre>' : marked.parse(msg.content);
+                    return '<div class="chat-message ' + msg.type + '" id="msg-' + msg.id + '">' +
+                        '<div class="message-header">' + header + ' &bull; ' + msg.timestamp + '</div>' +
+                        '<div class="message-content">' + body + '</div>' +
+                        '</div>';
+                }).join('');
                 
                 chatOutput.scrollTop = chatOutput.scrollHeight;
             }
 
             // Autocomplete Functions
+            function detectActionType(message) {
+                if (message.includes('@explain')) return 'explain';
+                if (message.includes('@refactor')) return 'refactor';
+                if (message.includes('@test')) return 'test';
+                if (message.includes('@document')) return 'document';
+                if (message.includes('@debug')) return 'debug';
+                if (message.includes('@optimize')) return 'optimize';
+                return null;
+            }
+
             function handleChatInputChange() {
                 clearTimeout(autocompleteDebounceTimer);
                 
@@ -729,14 +746,32 @@ export function getWebviewContent(webview: vscode.Webview, markedUri?: vscode.Ur
         const lines = textBeforeCursor.split('\\n');
         const currentLine = lines[lines.length - 1];
 
-        // Check if we're typing a command
-        const fileMatch = currentLine.match(/@file\\s+(.*)$/);
-        const dirMatch = currentLine.match(/@directory\\s+(.*)$/);
+        // Check if we're typing a command that needs path autocomplete
+        const fileMatch = currentLine.match(/@file\s+(.*)$/);
+        const dirMatch = currentLine.match(/@directory\s+(.*)$/);
+        const explainMatch = currentLine.match(/@explain\s+(.*)$/);
+        const refactorMatch = currentLine.match(/@refactor\s+(.*)$/);
+        const testMatch = currentLine.match(/@test\s+(.*)$/);
+        const documentMatch = currentLine.match(/@document\s+(.*)$/);
+        const debugMatch = currentLine.match(/@debug\s+(.*)$/);
+        const optimizeMatch = currentLine.match(/@optimize\s+(.*)$/);
 
         if (fileMatch) {
             requestAutocomplete('@file', fileMatch[1]);
         } else if (dirMatch) {
             requestAutocomplete('@directory', dirMatch[1]);
+        } else if (explainMatch) {
+            requestAutocomplete('@file', explainMatch[1]);
+        } else if (refactorMatch) {
+            requestAutocomplete('@file', refactorMatch[1]);
+        } else if (testMatch) {
+            requestAutocomplete('@file', testMatch[1]);
+        } else if (documentMatch) {
+            requestAutocomplete('@file', documentMatch[1]);
+        } else if (debugMatch) {
+            requestAutocomplete('@file', debugMatch[1]);
+        } else if (optimizeMatch) {
+            requestAutocomplete('@file', optimizeMatch[1]);
         } else {
             hideAutocomplete();
         }
@@ -766,12 +801,12 @@ function handleAutocompleteResults(items) {
 function showAutocomplete() {
     if (autocompleteItems.length === 0) return;
 
-    autocompleteDropdown.innerHTML = autocompleteItems.map((item, index) => \`
-                    <div class="autocomplete-item" data-index="\${index}">
-                        <span class="icon">\${item.icon}</span>
-                        <span class="path">\${item.path}</span>
-                    </div>
-                \`).join('');
+    autocompleteDropdown.innerHTML = autocompleteItems.map(function(item, index) {
+        return '<div class="autocomplete-item" data-index="' + index + '">' +
+            '<span class="icon">' + item.icon + '</span>' +
+            '<span class="path">' + item.path + '</span>' +
+            '</div>';
+    }).join('');
                 
                 // Add click handlers
                 autocompleteDropdown.querySelectorAll('.autocomplete-item').forEach((elem, index) => {
@@ -838,24 +873,43 @@ function showAutocomplete() {
                 const selectedItem = autocompleteItems[index];
                 const text = chatInput.value;
                 const cursorPos = chatInput.selectionStart;
-                
-                // Get the current line
-                const textBeforeCursor = text.substring(0, cursorPos);
-                const textAfterCursor = text.substring(cursorPos);
-                const lines = textBeforeCursor.split('\\n');
-                const currentLine = lines[lines.length - 1];
-                
-                // Replace the partial path with the selected path
-                let newLine = currentLine;
-                if (currentLine.includes('@file')) {
-                    newLine = '@file ' + selectedItem.path;
-                } else if (currentLine.includes('@directory')) {
-                    newLine = '@directory ' + selectedItem.path;
-                }
-                
-                // Reconstruct the text
-                lines[lines.length - 1] = newLine;
-                const newText = lines.join('\\n') + textAfterCursor;
+
+        // Get the current line
+        const textBeforeCursor = text.substring(0, cursorPos);
+        const textAfterCursor = text.substring(cursorPos);
+        const lines = textBeforeCursor.split('\\n');
+        const currentLine = lines[lines.length - 1];
+        
+        // Replace the partial path with the selected path
+        let newLine = currentLine;
+        if (currentLine.includes('@file')) {
+            newLine = '@file ' + selectedItem.path;
+        } else if (currentLine.includes('@directory')) {
+            newLine = '@directory ' + selectedItem.path;
+        } else if (currentLine.includes('@explain')) {
+            newLine = '@explain ' + selectedItem.path;
+        } else if (currentLine.includes('@refactor')) {
+            newLine = '@refactor ' + selectedItem.path;
+        } else if (currentLine.includes('@test')) {
+            newLine = '@test ' + selectedItem.path;
+        } else if (currentLine.includes('@document')) {
+            newLine = '@document ' + selectedItem.path;
+        } else if (currentLine.includes('@debug')) {
+            newLine = '@debug ' + selectedItem.path;
+        } else if (currentLine.includes('@optimize')) {
+            newLine = '@optimize ' + selectedItem.path;
+        }
+        
+        // Reconstruct the text
+        lines[lines.length - 1] = newLine;
+        const newText = lines.join('\\n') + textAfterCursor;
+        
+        chatInput.value = newText;
+        chatInput.selectionStart = chatInput.selectionEnd = lines.join('\\n').length;
+        
+        hideAutocomplete();
+        chatInput.focus();
+        saveState();
                 
                 chatInput.value = newText;
                 chatInput.selectionStart = chatInput.selectionEnd = lines.join('\\n').length;
@@ -950,13 +1004,14 @@ function showAutocomplete() {
                                 pendingAutoAnalysis: false
                             });
                             
-                            // Automatically send to AI for analysis
-                            const analysisPrompt = 'Please analyze and explain the following command result:\\n\\nCommand: ' + state.originalCommand + '\\n\\nResult:\\n' + message.value;
+                            const pendingActionType = state.actionType || null;
+                            const analysisPrompt = state.originalCommand || 'Analyze this code';
+                            const loadingLabel = pendingActionType ? 'AI ' + pendingActionType + 'ing...' : 'AI analyzing...';
                             
                             chatHistory.push({
                                 id: Date.now() + 1,
                                 type: 'user',
-                                content: '🤖 Analyzing result...',
+                                content: pendingActionType ? ('🎯 Running @' + pendingActionType + '...') : '🤖 Analyzing result...',
                                 timestamp: new Date().toLocaleTimeString()
                             });
                             renderChatHistory();
@@ -964,10 +1019,11 @@ function showAutocomplete() {
                             vscode.postMessage({
                                 type: 'chatWithModel',
                                 prompt: analysisPrompt,
-                                context: commandContext
+                                context: message.context,
+                                actionType: pendingActionType
                             });
                             
-                            setButtonLoading(true, 'AI analyzing...');
+                            setButtonLoading(true, loadingLabel);
                         } else {
                             setButtonLoading(false);
                             chatInput.focus();

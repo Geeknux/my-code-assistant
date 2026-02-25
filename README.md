@@ -9,12 +9,22 @@
 - **Smart routing** - automatically detects commands vs questions
 - **Seamless workflow** - run commands and get AI insights in one place
 
-### 📋 Powerful Commands
+### 📋 File Exploration Commands
 Explore your codebase with intuitive @ commands:
 
 - **`@project`** - Display project structure and directory tree (3 levels deep)
 - **`@directory <path>`** - Show directory tree for a specific path
 - **`@file <path>`** - Display file content with metadata (size, lines, type)
+
+### 🎯 Code Action Commands (AI-Powered)
+Transform your code with intelligent AI analysis:
+
+- **`@explain <path>`** - Get detailed, comprehensive code explanation
+- **`@refactor <path>`** - Receive refactoring suggestions with improved code
+- **`@test <path>`** - Generate complete unit test suites
+- **`@document <path>`** - Create professional JSDoc/TSDoc documentation
+- **`@debug <path>`** - Analyze code for bugs and get fixes
+- **`@optimize <path>`** - Get performance optimization recommendations
 
 ### 🤖 AI-Powered Analysis
 - **Automatic AI analysis** of command results when a model is selected
@@ -83,6 +93,52 @@ Key dependencies:
 ...
 ```
 
+#### Using Code Actions
+```
+You: @explain src/extension.ts
+
+📋 System: [Shows file with Action: EXPLAIN]
+
+🤖 Assistant: 
+**Overview**: This is the main extension file that activates the My Code Assistant.
+
+**Key Components**:
+1. PathValidator - Secures file system access
+2. RateLimiter - Prevents API overload
+3. HttpClient - Handles Ollama communication
+4. MyCodeAssistantProvider - Manages the webview
+
+**Logic Flow**: When activated, it registers the webview provider...
+```
+
+```
+You: @test src/utils/validator.ts
+
+📋 System: [Shows file with Action: TEST]
+
+🤖 Assistant:
+**Test Strategy**: Unit tests for PathValidator class
+
+**Test Code**:
+\`\`\`typescript
+import { PathValidator } from './validator';
+
+describe('PathValidator', () => {
+  test('should validate paths within workspace', () => {
+    const validator = new PathValidator('/workspace');
+    const result = validator.validatePath('src/file.ts');
+    expect(result.valid).toBe(true);
+  });
+  
+  test('should reject path traversal', () => {
+    const validator = new PathValidator('/workspace');
+    const result = validator.validatePath('../../../etc/passwd');
+    expect(result.valid).toBe(false);
+  });
+});
+\`\`\`
+```
+
 #### Direct Questions
 ```
 You: How does the extension work?
@@ -92,13 +148,24 @@ You: How does the extension work?
 
 ### Commands Reference
 
+#### File Exploration
 | Command | Description | Example |
 |---------|-------------|---------|
 | `@project` | Show project structure | `@project` |
 | `@directory <path>` | Show directory tree | `@directory src` |
 | `@file <path>` | Show file content | `@file package.json` |
 
-**Tip:** Use relative paths from workspace root
+#### Code Actions (AI-Powered)
+| Command | Description | Example |
+|---------|-------------|---------|
+| `@explain <path>` | Explain code in detail | `@explain src/extension.ts` |
+| `@refactor <path>` | Get refactoring suggestions | `@refactor src/utils.ts` |
+| `@test <path>` | Generate unit tests | `@test src/api/client.ts` |
+| `@document <path>` | Generate documentation | `@document src/helper.ts` |
+| `@debug <path>` | Find and fix bugs | `@debug src/service.ts` |
+| `@optimize <path>` | Optimize performance | `@optimize src/parser.ts` |
+
+**Tip:** Use relative paths from workspace root. Code action commands require an AI model to be selected.
 
 ### Keyboard Shortcuts
 
